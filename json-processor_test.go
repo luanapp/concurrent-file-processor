@@ -13,9 +13,9 @@ import (
 func TestStream_Process(t *testing.T) {
 	t.Run("Run parallel process", func(t *testing.T) {
 		stream := NewJsonStream[User, HydratedUser]()
-		users := stream.Process("testdata.json", func(input User) (HydratedUser, error) {
+		users := stream.Process("testdata.json", func(input *User) (*HydratedUser, error) {
 			time.Sleep(100 * time.Millisecond)
-			return HydratedUser{
+			return &HydratedUser{
 				Name:      input.Name,
 				BirthYear: time.Now().AddDate(-int(input.Age), 0, 0),
 			}, nil

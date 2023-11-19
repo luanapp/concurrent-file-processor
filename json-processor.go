@@ -8,12 +8,12 @@ import (
 
 type (
 	Data[T comparable] struct {
-		Content T
+		Content *T
 		Err     error
 	}
 
 	Stream[T, U comparable] struct {
-		m sync.Mutex
+		m sync.RWMutex
 	}
 
 	HydrateFunc[T, U comparable] func(input T) (U, error)
@@ -23,22 +23,25 @@ func NewJsonStream[T, U comparable]() Stream[T, U] {
 	return Stream[T, U]{}
 }
 
-func (s *Stream[T, U]) Process(path string, hydrateFunc HydrateFunc[T, U]) []U {
+func (s *Stream[T, U]) Process(path string, hydrateFunc HydrateFunc[*T, *U]) []*U {
 	dataCh := s.readFile(path)
 	return s.processData(dataCh, hydrateFunc)
 }
 
-func (s *Stream[T, U]) processData(dataCh <-chan Data[T], hydrateFunc HydrateFunc[T, U]) []U {
-	dataSlice := make([]U, 0)
+func (s *Stream[T, U]) processData(dataCh <-chan Data[T], hydrateFunc HydrateFunc[*T, *U]) []*U {
+	dataSlice := make([]*U, 0)
 	for data := range dataCh {
 		go func(dt Data[T]) {
 			d, _ := hydrateFunc(dt.Content)
 
 			s.m.Lock()
+			defer s.m.Unlock()
 			dataSlice = append(dataSlice, d)
-			s.m.Unlock()
 		}(data)
 	}
+
+	s.m.RLock()
+	defer s.m.RUnlock()
 	return dataSlice
 }
 
@@ -52,8 +55,8 @@ func (s *Stream[T, U]) readFile(path string) <-chan Data[T] {
 			fileData <- Data[T]{Err: err}
 			return
 		}
-		defer func(file *os.File) {
-			err := file.Close()
+		defer func(f *os.File) {
+			err := f.Close()
 			if err != nil {
 				fileData <- Data[T]{Err: err}
 			}
@@ -72,7 +75,7 @@ func (s *Stream[T, U]) readFile(path string) <-chan Data[T] {
 				fileData <- Data[T]{Err: err}
 			}
 
-			fileData <- Data[T]{Content: *data}
+			fileData <- Data[T]{Content: data}
 		}
 
 		if _, err = decoder.Token(); err != nil {
