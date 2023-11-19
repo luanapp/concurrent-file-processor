@@ -28,7 +28,7 @@ func TestStream_Process(t *testing.T) {
 
 func TestUnmarshal(t *testing.T) {
 	t.Run("Run unmarshal", func(t *testing.T) {
-		m := sync.Mutex{}
+		m := sync.RWMutex{}
 
 		bytes, err := os.ReadFile("testdata.json")
 		if err != nil {
@@ -57,6 +57,9 @@ func TestUnmarshal(t *testing.T) {
 				hUsers = append(hUsers, hUser)
 			}(user)
 		}
+
+		m.RLock()
+		defer m.RUnlock()
 		fmt.Printf("%d users processed", len(hUsers))
 	})
 }
