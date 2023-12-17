@@ -2,19 +2,16 @@ package json_processor
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
-	"sync"
 )
 
 type (
 	Data[T any] struct {
 		Content T
-		Err     error
 	}
 
-	Stream[T, U any] struct {
-		m sync.RWMutex
-	}
+	Stream[T, U any] struct{}
 
 	HydrateFunc[T any, U any] func(input T) (U, error)
 )
@@ -24,64 +21,71 @@ func NewJsonStream[T, U any]() Stream[T, U] {
 }
 
 func (s *Stream[T, U]) Process(path string, hydrateFunc HydrateFunc[T, U]) []U {
-	dataCh := s.readFile(path)
-	return s.processData(dataCh, hydrateFunc)
+	dataCh, errCh, done := s.readFile(path)
+	return s.processData(dataCh, errCh, done, hydrateFunc)
 }
 
-func (s *Stream[T, U]) processData(dataCh <-chan Data[T], hydrateFunc HydrateFunc[T, U]) []U {
+func (s *Stream[T, U]) processData(dataCh <-chan Data[T], errCh <-chan error, done <-chan struct{}, hydrateFunc HydrateFunc[T, U]) []U {
+
 	dataSlice := make([]U, 0)
-	for data := range dataCh {
-		go func(dt Data[T]) {
-			d, _ := hydrateFunc(dt.Content)
-
-			s.m.Lock()
-			defer s.m.Unlock()
+	for {
+		select {
+		case data := <-dataCh:
+			d, _ := hydrateFunc(data.Content)
 			dataSlice = append(dataSlice, d)
-		}(data)
+		case err := <-errCh:
+			fmt.Printf("error processing line: %v", err)
+		case <-done:
+			return dataSlice
+		}
 	}
-
-	s.m.RLock()
-	defer s.m.RUnlock()
-	return dataSlice
 }
 
-func (s *Stream[T, U]) readFile(path string) <-chan Data[T] {
+func (s *Stream[T, U]) readFile(path string) (<-chan Data[T], <-chan error, <-chan struct{}) {
 	fileData := make(chan Data[T], 4)
+	errCh := make(chan error, 1)
+	done := make(chan struct{})
 	go func() {
 		defer close(fileData)
+		defer close(errCh)
+		defer close(done)
 
 		file, err := os.Open(path)
 		if err != nil {
-			fileData <- Data[T]{Err: err}
+			errCh <- err
 			return
 		}
 		defer func(f *os.File) {
-			err := f.Close()
+			err = f.Close()
 			if err != nil {
-				fileData <- Data[T]{Err: err}
+				errCh <- err
 			}
 		}(file)
 
 		decoder := json.NewDecoder(file)
 
 		if _, err = decoder.Token(); err != nil {
-			fileData <- Data[T]{Err: err}
+			errCh <- err
+			return
 		}
 
 		for decoder.More() {
 			data := new(T)
 			err = decoder.Decode(data)
 			if err != nil {
-				fileData <- Data[T]{Err: err}
+				errCh <- err
 			}
 
 			fileData <- Data[T]{Content: *data}
 		}
 
 		if _, err = decoder.Token(); err != nil {
-			fileData <- Data[T]{Err: err}
+			errCh <- err
+			return
 		}
+
+		done <- struct{}{}
 	}()
 
-	return fileData
+	return fileData, errCh, done
 }

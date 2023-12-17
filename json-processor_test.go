@@ -36,17 +36,6 @@ var (
 	}
 )
 
-func getLibraryType(input RawLibraryData) string {
-	lType := input["type"]
-	switch lType.(type) {
-	case map[string]string:
-		lTypeKey := lType.(map[string]string)
-		return lTypeKey["key"]
-	default:
-		return ""
-	}
-}
-
 func TestStream_Process(t *testing.T) {
 	t.Run("Run parallel process", func(t *testing.T) {
 		stream := NewJsonStream[RawLibraryData, *Author]()
