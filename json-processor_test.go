@@ -2,7 +2,6 @@ package json_processor
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -25,21 +24,12 @@ var (
 			BirthYear: time.Now().AddDate(-int(input.Age), 0, 0),
 		}, nil
 	}
-
-	libraryProcessor = func(input RawLibraryData) (*Author, error) {
-		switch getLibraryType(input) {
-		case "/type/author":
-			return &Author{Name: (input)["name"].(string)}, nil
-		default:
-			return nil, errors.New("library type not supported")
-		}
-	}
 )
 
 func TestStream_Process(t *testing.T) {
 	t.Run("Run parallel process", func(t *testing.T) {
-		stream := NewJsonStream[RawLibraryData, *Author]()
-		users := stream.Process(libraryJson, libraryProcessor)
+		stream := NewJsonStream[RawLibraryData, LibData]()
+		users := stream.Process(libraryJson, ParseLibraryData)
 		fmt.Printf("%d users processed", len(users))
 
 		assert.True(t, len(users) > 0)
