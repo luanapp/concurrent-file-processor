@@ -1,4 +1,4 @@
-module github.com/luanapp/parallel-json-processor
+module github.com/luanapp/parallel-file-processor
 
 go 1.21.0
 

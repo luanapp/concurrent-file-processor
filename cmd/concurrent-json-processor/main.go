@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	processor "github.com/luanapp/parallel-json-processor"
+	processor "github.com/luanapp/parallel-file-processor"
 )
 
 const (
