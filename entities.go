@@ -1,4 +1,4 @@
-package json_processor
+package processor
 
 import (
 	"errors"
@@ -42,7 +42,26 @@ func (e Edition) GetName() string {
 	return e.Title
 }
 
-func ParseLibraryData(input RawLibraryData) (LibData, error) {
+func ParseUserData(input *User) (*HydratedUser, error) {
+	time.Sleep(100 * time.Millisecond)
+	return &HydratedUser{
+		Name:      input.Name,
+		BirthYear: time.Now().AddDate(-int(input.Age), 0, 0),
+	}, nil
+}
+
+func ParseOrganizationData(input []string, metadata map[string]any) (map[string]any, error) {
+	var (
+		data   = make(map[string]any)
+		header = metadata[metadataHeader].([]string)
+	)
+	for i := 0; i < len(header); i++ {
+		data[header[i]] = input[i]
+	}
+	return data, nil
+}
+
+func ParseLibraryData(input RawLibraryData, _ map[string]any) (LibData, error) {
 	switch getLibraryType(input) {
 	case "/type/author":
 		name := (input)["name"].(string)

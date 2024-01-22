@@ -1,4 +1,4 @@
-package json_processor
+package processor
 
 import (
 	"encoding/json"
@@ -12,27 +12,28 @@ import (
 )
 
 const (
-	userJson    = "testdata.json"
-	libraryJson = "ol_cdump.json"
+	userJson         = "sample_files/testdata.json"
+	libraryJson      = "sample_files/ol_cdump.json"
+	organizationsCsv = "sample_files/organizations-2000000.csv"
 )
 
-var (
-	userProcessor = func(input *User) (*HydratedUser, error) {
-		time.Sleep(100 * time.Millisecond)
-		return &HydratedUser{
-			Name:      input.Name,
-			BirthYear: time.Now().AddDate(-int(input.Age), 0, 0),
-		}, nil
-	}
-)
-
-func TestStream_Process(t *testing.T) {
+func TestJson_Process(t *testing.T) {
 	t.Run("Run parallel process", func(t *testing.T) {
 		stream := NewJsonStream[RawLibraryData, LibData]()
 		users := stream.Process(libraryJson, ParseLibraryData)
 		fmt.Printf("%d users processed", len(users))
 
 		assert.True(t, len(users) > 0)
+	})
+}
+
+func TestCsv_Process(t *testing.T) {
+	t.Run("Run parallel process", func(t *testing.T) {
+		stream := NewCsvStream[[]string, map[string]any]()
+		organizations := stream.Process(organizationsCsv, ParseOrganizationData)
+		fmt.Printf("%d organizations processed", len(organizations))
+
+		assert.True(t, len(organizations) > 0)
 	})
 }
 
